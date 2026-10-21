@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Заказы моего ПВЗ — Учебный ПВЗ{% endblock %}
+{% block content %}
+  <h1>Заказы моего ПВЗ</h1>
+  <p>{{ current_user.point_name }} ({{ current_user.point_code }})</p>
+  <p><a href="{{ url_for('executor.new_order') }}">Зарегистрировать заказ</a></p>
+  <form method="get" action="{{ url_for('executor.orders') }}">
+    <label>Поиск по номеру заказа <input name="q" value="{{ search }}" maxlength="200"></label>
+    <button type="submit">Найти</button>
+    {% if search %}<a href="{{ url_for('executor.orders') }}">Сбросить поиск</a>{% endif %}
+  </form>
+  {% if orders %}
+    <div class="table-wrap"><table>
+      <thead><tr><th>Номер</th><th>Ожидается</th><th>Хранение до</th><th>Осмотр</th><th>Процессы</th></tr></thead>
+      <tbody>
+      {% for order in orders %}
+        <tr>
+          <td><a href="{{ url_for('executor.order_detail', order_id=order.order_id) }}">{{ order.external_no }}</a></td>
+          <td>{{ order.expected_at.strftime('%d.%m.%Y %H:%M') }}</td>
+          <td>{{ order.storage_until.strftime('%d.%m.%Y %H:%M') }}</td>
+          <td>{% if order.is_damaged is none %}Не проводился{% elif order.is_damaged %}Повреждён{% else %}Без повреждений{% endif %}</td>
+          <td>{{ order.process_count }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+  {% else %}
+    <p>{{ 'Заказы с таким номером не найдены.' if search else 'В вашем ПВЗ заказов пока нет.' }}</p>
+  {% endif %}
+{% endblock %}

@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Процесс по заказу {{ process.external_no }} — Учебный ПВЗ{% endblock %}
+{% block content %}
+<h1>Процесс по заказу {{ process.external_no }}</h1>
+<p><a href="{{ url_for('executor.order_detail', order_id=process.order_id) }}">К карточке заказа</a> · <a href="{{ url_for('executor.orders') }}">К списку заказов</a></p>
+<p>Шаблон: <strong>{{ process.template_name }}</strong> (<code>{{ process.template_code }}</code>), версия {{ process.version_no }}.<br>
+Начат: {{ process.started_at.strftime('%d.%m.%Y %H:%M') }}.
+{% if process.finished_at %}Завершён: {{ process.finished_at.strftime('%d.%m.%Y %H:%M') }}.{% endif %}</p>
+<h2>Текущее состояние</h2>
+<p class="notice {{ 'success' if process.finished_at else '' }}"><strong>{{ process.state_name }}</strong> (<code>{{ process.state_code }}</code>) · позиция {{ process.position_no }}{% if process.is_terminal %} · конечное состояние{% endif %}.</p>
+<p>Ожидаемое поступление: {{ process.expected_at.strftime('%d.%m.%Y %H:%M') }}. Срок хранения: {{ process.storage_until.strftime('%d.%m.%Y %H:%M') }}.<br>
+Результат осмотра: {% if process.is_damaged is none %}не указан{% elif process.is_damaged %}товар повреждён{% else %}повреждений нет{% endif %}.</p>
+{% if process.position_no == 1 and not process.finished_at %}
+{% set inspection_f = retry_form(url_for('executor.inspect_process', instance_id=process.instance_id)) %}
+{% set chosen_damage = inspection_f.get('is_damaged') if inspection_f is not none else ('true' if process.is_damaged is sameas true else 'false' if process.is_damaged is sameas false else '') %}
+<h2>Осмотр товара</h2>
+<p>Результат можно указать или исправить до принятия первого решения.</p>
+<form method="post" action="{{ url_for('executor.inspect_process', instance_id=process.instance_id) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label>Результат <select name="is_damaged" required>
+    <option value="">Выберите</option>
+    <option value="false" {% if chosen_damage == 'false' %}selected{% endif %}>Повреждений нет</option>
+    <option value="true" {% if chosen_damage == 'true' %}selected{% endif %}>Товар повреждён</option>
+  </select></label>
+  <button type="submit">Сохранить результат осмотра</button>
+</form>
+{% endif %}
+<h2>Решения</h2>
+{% set decision_f = retry_form(url_for('executor.apply_decision', instance_id=process.instance_id)) %}
+{% if decision_f is not none and decision_f.get('note') %}
+<p>Неотправленное примечание к решению {{ decision_f.get('decision_code', '') }} сохранено ниже. Его можно исправить и отправить повторно, если решение доступно.</p>
+<textarea class="retry-note" readonly aria-label="Неотправленное примечание">{{ decision_f.get('note') }}</textarea>
+{% endif %}
+{% if process.finished_at %}
+  <p>Процесс завершён. Новые решения не принимаются.</p>
+{% elif decisions %}
+  {% for decision in decisions %}
+  <section class="record">
+    <h3>{{ decision.name }} <small>(<code>{{ decision.code }}</code>)</small></h3>
+    {% if decision.allowed %}
+      <p>Доступно. Следующее состояние: {{ decision.target }}.</p>
+      <form method="post" action="{{ url_for('executor.apply_decision', instance_id=process.instance_id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="decision_code" value="{{ decision.code }}">
+        <label>Примечание (необязательно) <input name="note" value="{{ decision_f.get('note', '') if decision_f is not none and decision_f.get('decision_code') == decision.code else '' }}" maxlength="1000"></label>
+        <button type="submit">Применить решение</button>
+      </form>
+    {% else %}<p class="unavailable">Недоступно: {{ decision.reason }}</p>{% endif %}
+  </section>
+  {% endfor %}
+{% else %}<p>Для текущего состояния решений нет. Обратитесь к конструктору процесса.</p>{% endif %}
+<p>Доступность решений рассчитана по текущим данным. При подтверждении приложение повторно проверяет состояние, права и условия перехода.</p>
+<h2 id="trajectory">Траектория процесса</h2>
+<p>После принятия решения история обновляется вместе с текущим состоянием. <a href="{{ url_for('executor.trajectory', instance_id=process.instance_id) }}">Открыть траекторию отдельно</a>.</p>
+{% include "executor/_trajectory_table.html" %}
+{% endblock %}

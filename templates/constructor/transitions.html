@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Решения и переходы — Учебный ПВЗ{% endblock %}
+{% block content %}
+<h1>Решения и переходы</h1>
+{% include "constructor/_template_nav.html" %}
+<p>Каждая запись связывает решение в исходном состоянии с целевым состоянием. Дополнительное условие можно оставить пустым. При редактировании или удалении решения заменяются все его правила из данного состояния.</p>
+{% if transitions %}{% for tr in transitions %}
+<section class="record"><h2>{{ tr.source_name }} → {{ tr.target_name }}</h2>
+<p>Решение: {{ tr.decision_name }} (<code>{{ tr.decision_code }}</code>){% if tr.condition_kind %}. Условие: {{ 'товар повреждён' if tr.condition_kind == 'ORDER_DAMAGED' else 'срок хранения истёк' }} = {{ 'да' if tr.expected_bool else 'нет' }}{% endif %}.</p>
+{% if template.status == 'DRAFT' %}
+{% set f = retry_form(url_for('constructor.edit_transition', template_id=template.template_id, clause_id=tr.clause_id)) %}
+{% set chosen_kind = f.get('condition_kind', tr.condition_kind or '') if f is not none else (tr.condition_kind or '') %}
+{% set previous_bool = 'true' if tr.expected_bool is sameas true else 'false' if tr.expected_bool is sameas false else '' %}
+{% set chosen_bool = f.get('expected_bool', previous_bool) if f is not none else previous_bool %}
+<form method="post" action="{{ url_for('constructor.edit_transition', template_id=template.template_id, clause_id=tr.clause_id) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label>Код решения <input name="decision_code" value="{{ f.get('decision_code', tr.decision_code) if f is not none else tr.decision_code }}" maxlength="200" required></label>
+  <label>Название решения <input name="decision_name" value="{{ f.get('decision_name', tr.decision_name) if f is not none else tr.decision_name }}" maxlength="200" required></label>
+  <label>Целевое состояние <select name="to_code" required>{% for state in states if not state.is_initial %}<option value="{{ state.code }}" {% if state.code == (f.get('to_code', tr.target_code) if f is not none else tr.target_code) %}selected{% endif %}>{{ state.name }} ({{ state.code }})</option>{% endfor %}</select></label>
+  <label>Дополнительное условие <select name="condition_kind"><option value="" {% if chosen_kind == '' %}selected{% endif %}>Без условия</option><option value="ORDER_DAMAGED" {% if chosen_kind == 'ORDER_DAMAGED' %}selected{% endif %}>Товар повреждён</option><option value="STORAGE_EXPIRED" {% if chosen_kind == 'STORAGE_EXPIRED' %}selected{% endif %}>Срок хранения истёк</option></select></label>
+  <label>Ожидаемое значение <select name="expected_bool"><option value="" {% if chosen_bool == '' %}selected{% endif %}>Не требуется</option><option value="true" {% if chosen_bool == 'true' %}selected{% endif %}>Да</option><option value="false" {% if chosen_bool == 'false' %}selected{% endif %}>Нет</option></select></label>
+  <button type="submit">Сохранить переход</button>
+</form>
+<form method="post" action="{{ url_for('constructor.delete_transition', template_id=template.template_id, clause_id=tr.clause_id) }}" onsubmit="return confirm('Удалить решение и все его правила из этого состояния?')"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit">Удалить переход</button></form>
+{% endif %}</section>
+{% endfor %}{% else %}<p>Правил перехода пока нет.</p>{% endif %}
+{% if template.status == 'DRAFT' %}
+<h2>Добавить решение и переход</h2>
+{% if states|length < 2 %}<p>Сначала добавьте минимум два состояния.</p>{% else %}
+{% set f = retry_form(url_for('constructor.create_transition', template_id=template.template_id)) %}
+<form method="post" action="{{ url_for('constructor.create_transition', template_id=template.template_id) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label>Исходное состояние <select name="from_code" required><option value="">Выберите</option>{% for state in states if not state.is_terminal %}<option value="{{ state.code }}" {% if (f.get('from_code') if f is not none else request.args.get('from_code')) == state.code %}selected{% endif %}>{{ state.name }} ({{ state.code }})</option>{% endfor %}</select></label>
+  <label>Код решения <input name="decision_code" value="{{ f.get('decision_code', '') if f is not none else '' }}" maxlength="200" required></label>
+  <label>Название решения <input name="decision_name" value="{{ f.get('decision_name', '') if f is not none else '' }}" maxlength="200" required></label>
+  <label>Целевое состояние <select name="to_code" required><option value="">Выберите</option>{% for state in states if not state.is_initial %}<option value="{{ state.code }}" {% if f is not none and f.get('to_code') == state.code %}selected{% endif %}>{{ state.name }} ({{ state.code }})</option>{% endfor %}</select></label>
+  <label>Дополнительное условие <select name="condition_kind"><option value="">Без условия</option><option value="ORDER_DAMAGED" {% if f is not none and f.get('condition_kind') == 'ORDER_DAMAGED' %}selected{% endif %}>Товар повреждён</option><option value="STORAGE_EXPIRED" {% if f is not none and f.get('condition_kind') == 'STORAGE_EXPIRED' %}selected{% endif %}>Срок хранения истёк</option></select></label>
+  <label>Ожидаемое значение <select name="expected_bool"><option value="">Не требуется</option><option value="true" {% if f is not none and f.get('expected_bool') == 'true' %}selected{% endif %}>Да</option><option value="false" {% if f is not none and f.get('expected_bool') == 'false' %}selected{% endif %}>Нет</option></select></label>
+  <button type="submit">Добавить переход</button>
+</form>{% endif %}
+{% endif %}
+<p><a href="{{ url_for('constructor.access', template_id=template.template_id) }}">Далее: права доступа →</a></p>
+{% endblock %}

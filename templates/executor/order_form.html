@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Новый заказ' if mode == 'new' else 'Исправление заказа' }} — Учебный ПВЗ{% endblock %}
+{% block content %}
+<h1>{{ 'Регистрация заказа' if mode == 'new' else 'Исправление заказа' }}</h1>
+<p>ПВЗ: {{ current_user.point_name }} ({{ current_user.point_code }}). Дата и время вводятся по московскому времени. Укажите хотя бы один товар.</p>
+<form method="post" action="{{ url_for('executor.create_order') if mode == 'new' else url_for('executor.save_order', order_id=order.order_id) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label>Номер заказа
+    <input name="external_no" value="{{ values.external_no }}" maxlength="200" required>
+  </label>
+  <label>Ожидаемое поступление
+    <input type="datetime-local" name="expected_at" value="{{ values.expected_at }}" required>
+  </label>
+  <label>Хранение до
+    <input type="datetime-local" name="storage_until" value="{{ values.storage_until }}" required>
+  </label>
+  <h2>Товары</h2>
+  <div id="order-items">
+    {% for item in values['items'] %}
+    <div class="item-row">
+      <label>Артикул <input name="sku" value="{{ item.sku }}" maxlength="200" required></label>
+      <label>Наименование <input name="item_name" value="{{ item.item_name }}" maxlength="200" required></label>
+      <label>Количество <input type="number" name="quantity" value="{{ item.quantity }}" min="1" max="999999" step="1" required></label>
+      <button type="button" class="remove-item">Убрать товар</button>
+    </div>
+    {% endfor %}
+  </div>
+  <button type="button" id="add-item">Добавить товар</button>
+  <p><button type="submit">{{ 'Зарегистрировать заказ' if mode == 'new' else 'Сохранить изменения' }}</button></p>
+</form>
+<template id="item-template">
+  <div class="item-row">
+    <label>Артикул <input name="sku" maxlength="200" required></label>
+    <label>Наименование <input name="item_name" maxlength="200" required></label>
+    <label>Количество <input type="number" name="quantity" min="1" max="999999" step="1" required></label>
+    <button type="button" class="remove-item">Убрать товар</button>
+  </div>
+</template>
+<p><a href="{{ url_for('executor.orders') if mode == 'new' else url_for('executor.order_detail', order_id=order.order_id) }}">Отменить и вернуться</a></p>
+<script>
+(() => {
+  const items = document.getElementById('order-items');
+  document.getElementById('add-item').addEventListener('click', () => {
+    if (items.children.length >= 20) return;
+    items.append(document.getElementById('item-template').content.cloneNode(true));
+  });
+  items.addEventListener('click', (event) => {
+    if (!event.target.classList.contains('remove-item')) return;
+    if (items.children.length > 1) event.target.closest('.item-row').remove();
+  });
+})();
+</script>
+{% endblock %}

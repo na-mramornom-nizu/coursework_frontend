@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Заказ {{ order.external_no }} — Учебный ПВЗ{% endblock %}
+{% block content %}
+  <h1>Заказ {{ order.external_no }}</h1>
+  <p>Ожидаемое поступление: {{ order.expected_at.strftime('%d.%m.%Y %H:%M') }}.<br>
+     Хранение до: {{ order.storage_until.strftime('%d.%m.%Y %H:%M') }}.</p>
+  <p>Результат осмотра:
+     {% if order.is_damaged is none %}пока не указан{% elif order.is_damaged %}товар повреждён{% else %}повреждений нет{% endif %}.</p>
+  <h2>Товары</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Артикул</th><th>Наименование</th><th>Количество</th></tr></thead>
+    <tbody>
+    {% for item in items %}
+      <tr><td>{{ item.sku }}</td><td>{{ item.item_name }}</td><td>{{ item.quantity }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% if not instances %}
+    <p><a href="{{ url_for('executor.edit_order', order_id=order.order_id) }}">Исправить реквизиты и товары</a></p>
+  {% else %}
+    <p>После запуска процесса реквизиты и товары заказа доступны только для просмотра.</p>
+  {% endif %}
+  <h2>Экземпляры процесса</h2>
+  {% if instances %}
+    <div class="table-wrap"><table>
+      <thead><tr><th>Шаблон</th><th>Начат</th><th>Текущее состояние</th><th>Статус</th></tr></thead>
+      <tbody>{% for instance in instances %}<tr>
+        <td><a href="{{ url_for('executor.process_detail', instance_id=instance.instance_id) }}">{{ instance.template_name }}</a><br><code>{{ instance.template_code }}</code>, версия {{ instance.version_no }}<br><a href="{{ url_for('executor.trajectory', instance_id=instance.instance_id) }}">Траектория</a></td>
+        <td>{{ instance.started_at.strftime('%d.%m.%Y %H:%M') }}</td>
+        <td>{{ instance.state_name }}</td>
+        <td>{{ 'Завершён' if instance.finished_at else 'В работе' }}</td>
+      </tr>{% endfor %}</tbody>
+    </table></div>
+  {% else %}<p>По этому заказу процесс ещё не запускался.</p>{% endif %}
+  <h2>Начать процесс</h2>
+  {% if available_templates %}
+    {% set start_f = retry_form(url_for('executor.start_process', order_id=order.order_id)) %}
+    <form method="post" action="{{ url_for('executor.start_process', order_id=order.order_id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label>Опубликованный шаблон
+        <select name="template_id" required><option value="">Выберите шаблон</option>
+        {% for template in available_templates %}<option value="{{ template.template_id }}" {% if start_f is not none and start_f.get('template_id') == template.template_id|string %}selected{% endif %}>{{ template.name }} (версия {{ template.version_no }})</option>{% endfor %}
+        </select>
+      </label>
+      <button type="submit">Начать процесс</button>
+    </form>
+  {% else %}<p>Доступных для запуска шаблонов нет: нет прав на начальное состояние либо экземпляр по опубликованной версии уже создан.</p>{% endif %}
+  <p><a href="{{ url_for('executor.orders') }}">К списку заказов</a></p>
+{% endblock %}

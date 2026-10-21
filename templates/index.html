@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Учебный ПВЗ — курсовая работа{% endblock %}
+{% block content %}
+  <h1>Управление процессом обработки заказа в ПВЗ</h1>
+  <p>Вы вошли как <strong>{{ current_user.full_name }}</strong>
+     ({{ current_user.employee_code }}), ПВЗ: {{ current_user.point_name }}.</p>
+  <p>Доступные разделы:</p>
+  <ul>
+    {% if current_user.has_role('CONSTRUCTOR') %}
+      <li><a href="{{ url_for('constructor.types') }}">Классификатор процессов</a></li>
+      <li><a href="{{ url_for('constructor.templates') }}">Настройка шаблонов</a></li>
+      <li><a href="{{ url_for('constructor.settings') }}">Настройка системы и учётных записей</a></li>
+    {% endif %}
+    {% if current_user.has_role('EXECUTOR') %}
+      <li><a href="{{ url_for('executor.orders') }}">Заказы моего ПВЗ</a></li>
+    {% endif %}
+  </ul>
+{% endblock %}

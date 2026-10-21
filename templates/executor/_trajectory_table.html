@@ -1,0 +1,13 @@
+{% if trajectory %}
+<div class="table-wrap"><table>
+  <thead><tr><th>№</th><th>Состояние</th><th>Решение</th><th>Сотрудник</th><th>Время</th><th>Примечание</th></tr></thead>
+  <tbody>{% for step in trajectory %}<tr>
+    <td>{{ step.position_no }}</td>
+    <td>{{ step.state_name }}</td>
+    <td>{{ step.decision_name or 'Запуск процесса' }}</td>
+    <td>{{ step.employee_name }}</td>
+    <td>{{ step.entered_at.strftime('%d.%m.%Y %H:%M:%S') }}</td>
+    <td>{{ step.note or '—' }}</td>
+  </tr>{% endfor %}</tbody>
+</table></div>
+{% else %}<p>Записей траектории нет.</p>{% endif %}

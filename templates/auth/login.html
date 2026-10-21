@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Вход — Учебный ПВЗ{% endblock %}
+{% block content %}
+  <h1>Вход в приложение</h1>
+  {% if error %}<p class="notice error" role="alert">{{ error }}</p>{% endif %}
+  <form action="{{ url_for('auth.login') }}" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="login">Логин</label>
+    <input id="login" name="login" value="{{ request.form.get('login', '') if request.method == 'POST' else '' }}" autocomplete="username" required maxlength="200">
+    <label for="password">Пароль</label>
+    <input id="password" name="password" type="password"
+           autocomplete="current-password" required>
+    <button type="submit">Войти</button>
+  </form>
+{% endblock %}

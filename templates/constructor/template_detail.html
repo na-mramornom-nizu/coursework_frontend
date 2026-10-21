@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Шаблон {{ template.code }} — Учебный ПВЗ{% endblock %}
+{% block content %}
+<h1>Карточка шаблона</h1>
+{% include "constructor/_template_nav.html" %}
+<p>Тип: {{ template.type_name }}. Семейство: <code>{{ template.family_code }}</code>. {% if template.published_at %}Опубликован: {{ template.published_at.strftime('%d.%m.%Y %H:%M') }}.{% endif %}</p>
+<h2>Состав версии</h2>
+<p>Состояний: {{ states|length }}. Правил перехода: {{ transitions|length }}.</p>
+{% if states %}<ul>{% for state in states %}<li>{{ state.name }} ({{ state.code }}){% if state.is_initial %} — начальное{% endif %}{% if state.is_terminal %} — конечное{% endif %}</li>{% endfor %}</ul>{% endif %}
+<h2>Проверка готовности</h2>
+{% if issues %}<p class="notice error">Обнаружено замечаний: {{ issues|length }}. Публикация станет возможной после их устранения.</p><ul>{% for issue in issues %}<li><code>{{ issue.issue_code }}</code>: {{ issue.issue_text }}</li>{% endfor %}</ul>
+<p>Исправьте состав на страницах <a href="{{ url_for('constructor.states', template_id=template.template_id) }}">состояний</a>, <a href="{{ url_for('constructor.transitions', template_id=template.template_id) }}">переходов</a> и <a href="{{ url_for('constructor.access', template_id=template.template_id) }}">прав доступа</a>.</p>
+{% else %}<p class="notice success">Проверка пройдена: версия готова к публикации.</p>{% endif %}
+{% if template.status == 'DRAFT' %}
+{% set edit_f = retry_form(url_for('constructor.update_template_name', template_id=template.template_id)) %}
+<h2>Изменить название</h2><form method="post" action="{{ url_for('constructor.update_template_name', template_id=template.template_id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><label>Название <input name="name" value="{{ edit_f.get('name', template.name) if edit_f is not none else template.name }}" maxlength="200" required></label><button type="submit">Сохранить</button></form>
+{% if not issues %}<form method="post" action="{{ url_for('constructor.publish_template', template_id=template.template_id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit">Опубликовать версию</button></form>{% endif %}
+{% elif template.status == 'PUBLISHED' %}
+<p>Опубликованная версия доступна только для просмотра. Для изменений создайте следующую версию.</p>
+{% set clone_f = retry_form(url_for('constructor.clone_template', template_id=template.template_id)) %}
+<h2>Создать новую версию</h2><form method="post" action="{{ url_for('constructor.clone_template', template_id=template.template_id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><label>Код новой версии <input name="code" value="{{ clone_f.get('code', '') if clone_f is not none else '' }}" maxlength="200" required></label><label>Название <input name="name" value="{{ clone_f.get('name', template.name) if clone_f is not none else template.name }}" maxlength="200" required></label><button type="submit">Создать черновик на основе версии</button></form>
+{% else %}<p>Архивная версия доступна только для просмотра.</p>{% endif %}
+{% endblock %}

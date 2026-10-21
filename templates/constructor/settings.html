@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}Настройка доступа — Учебный ПВЗ{% endblock %}
+{% block content %}
+  <h1>Настройка доступа</h1>
+  <p>Учётная запись связана с одним сотрудником. Роли приложения определяют доступ к разделам; предметные группы отдельно ограничивают действия с процессом.</p>
+
+  <h2>Пункты выдачи</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Код</th><th>Название и адрес</th><th>Статус</th><th>Действия</th></tr></thead>
+    <tbody>{% for point in points %}<tr>
+      <td><code>{{ point.code }}</code></td>
+      <td>{{ point.name }}<br>{{ point.address or 'Адрес не указан' }}</td>
+      <td>{{ 'Действует' if point.is_active else 'Отключён' }}</td>
+      <td>
+        <form method="post" action="{{ url_for('constructor.save_point') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="code" value="{{ point.code }}">
+          <label>Название <input name="name" value="{{ point.name }}" maxlength="200" required></label>
+          <label>Адрес <input name="address" value="{{ point.address or '' }}" maxlength="500"></label>
+          <button type="submit">Сохранить ПВЗ</button>
+        </form>
+        <form method="post" action="{{ url_for('constructor.change_point_status', code=point.code) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit">{{ 'Отключить' if point.is_active else 'Включить' }}</button>
+        </form>
+      </td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+  <h3>Добавить ПВЗ</h3>
+  {% set point_f = retry_form(url_for('constructor.save_point')) %}
+  <form method="post" action="{{ url_for('constructor.save_point') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label>Код <input name="code" value="{{ point_f.get('code', '') if point_f is not none else '' }}" maxlength="200" required></label>
+    <label>Название <input name="name" value="{{ point_f.get('name', '') if point_f is not none else '' }}" maxlength="200" required></label>
+    <label>Адрес <input name="address" value="{{ point_f.get('address', '') if point_f is not none else '' }}" maxlength="500"></label>
+    <button type="submit">Добавить ПВЗ</button>
+  </form>
+
+  <h2>Сотрудники</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Код</th><th>Имя и ПВЗ</th><th>Статус</th><th>Действия</th></tr></thead>
+    <tbody>{% for employee in all_employees %}<tr>
+      <td><code>{{ employee.code }}</code></td>
+      <td>{{ employee.full_name }}<br>{{ employee.point_name }}</td>
+      <td>{{ 'Действует' if employee.is_active else 'Отключён' }}</td>
+      <td>
+        <form method="post" action="{{ url_for('constructor.save_employee') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="code" value="{{ employee.code }}">
+          <label>Имя <input name="full_name" value="{{ employee.full_name }}" maxlength="200" required></label>
+          <label>ПВЗ <select name="point_code" required>
+            {% for point in points if point.is_active %}<option value="{{ point.code }}" {% if point.code == employee.point_code %}selected{% endif %}>{{ point.name }} ({{ point.code }})</option>{% endfor %}
+          </select></label>
+          <button type="submit">Сохранить сотрудника</button>
+        </form>
+        <form method="post" action="{{ url_for('constructor.change_employee_status', code=employee.code) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit">{{ 'Отключить' if employee.is_active else 'Включить' }}</button>
+        </form>
+      </td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+  <h3>Добавить сотрудника</h3>
+  {% set employee_f = retry_form(url_for('constructor.save_employee')) %}
+  <form method="post" action="{{ url_for('constructor.save_employee') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label>Код <input name="code" value="{{ employee_f.get('code', '') if employee_f is not none else '' }}" maxlength="200" required></label>
+    <label>Имя <input name="full_name" value="{{ employee_f.get('full_name', '') if employee_f is not none else '' }}" maxlength="200" required></label>
+    <label>ПВЗ <select name="point_code" required>
+      {% for point in points if point.is_active %}<option value="{{ point.code }}" {% if employee_f is not none and employee_f.get('point_code') == point.code %}selected{% endif %}>{{ point.name }} ({{ point.code }})</option>{% endfor %}
+    </select></label>
+    <button type="submit">Добавить сотрудника</button>
+  </form>
+
+  <h2>Учётные записи</h2>
+  {% if accounts %}
+    <div class="table-wrap"><table>
+      <thead><tr><th>Логин</th><th>Сотрудник и ПВЗ</th><th>Состояние</th><th>Роли и действия</th></tr></thead>
+      <tbody>
+      {% for account in accounts %}
+        <tr>
+          <td>{{ account.login }}</td>
+          <td>{{ account.full_name }} ({{ account.employee_code }})<br>{{ account.point_name }}</td>
+          <td>{{ 'Активна' if account.is_active else 'Отключена' }}</td>
+          <td>
+            {% set roles_f = retry_form(url_for('constructor.change_account_roles', account_id=account.account_id)) %}
+            {% set selected_roles = roles_f.getlist('role') if roles_f is not none else account.roles %}
+            <form method="post" action="{{ url_for('constructor.change_account_roles', account_id=account.account_id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <label class="inline"><input type="checkbox" name="role" value="CONSTRUCTOR" {% if 'CONSTRUCTOR' in selected_roles %}checked{% endif %}> Конструктор</label>
+              <label class="inline"><input type="checkbox" name="role" value="EXECUTOR" {% if 'EXECUTOR' in selected_roles %}checked{% endif %}> Исполнитель</label>
+              <button type="submit">Сохранить роли</button>
+            </form>
+            <form method="post" action="{{ url_for('constructor.change_account_status', account_id=account.account_id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit">{{ 'Отключить' if account.is_active else 'Включить' }}</button>
+            </form>
+            <form method="post" action="{{ url_for('constructor.reset_account_password', account_id=account.account_id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <label>Новый пароль <input type="password" name="password" autocomplete="new-password" minlength="10" required></label>
+              <button type="submit">Сменить пароль</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+  {% else %}
+    <p>Учётных записей пока нет.</p>
+  {% endif %}
+
+  <h2>Создать учётную запись</h2>
+  {% if employees %}
+    {% set f = retry_form(url_for('constructor.create_account')) %}
+    <form method="post" action="{{ url_for('constructor.create_account') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label for="employee_code">Сотрудник</label>
+      <select id="employee_code" name="employee_code" required>
+        <option value="">Выберите сотрудника</option>
+        {% for employee in employees %}
+          <option value="{{ employee.code }}" {% if f is not none and f.get('employee_code') == employee.code %}selected{% endif %}>{{ employee.full_name }} ({{ employee.code }}) — {{ employee.point_name }}</option>
+        {% endfor %}
+      </select>
+      <label for="new_login">Логин</label>
+      <input id="new_login" name="login" value="{{ f.get('login', '') if f is not none else '' }}" required maxlength="200" autocomplete="off">
+      <label for="new_password">Начальный пароль</label>
+      <input id="new_password" name="password" type="password" required minlength="10" autocomplete="new-password">
+      <fieldset><legend>Роли</legend>
+        <label class="inline"><input type="checkbox" name="role" value="CONSTRUCTOR" {% if f is not none and 'CONSTRUCTOR' in f.getlist('role') %}checked{% endif %}> Конструктор</label>
+        <label class="inline"><input type="checkbox" name="role" value="EXECUTOR" {% if f is not none and 'EXECUTOR' in f.getlist('role') %}checked{% endif %}> Исполнитель</label>
+      </fieldset>
+      <button type="submit">Создать</button>
+    </form>
+  {% else %}
+    <p>Нет свободных действующих сотрудников для новой учётной записи.</p>
+  {% endif %}
+{% endblock %}

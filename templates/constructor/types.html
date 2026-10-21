@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Классификатор процессов — Учебный ПВЗ{% endblock %}
+{% block content %}
+<h1>Классификатор процессов</h1>
+<p>Тип определяет семейство процессов. Дочерний тип наследует место в классификаторе, но шаблоны создаются для выбранного типа отдельно.</p>
+{% if types %}
+<div class="table-wrap"><table><thead><tr><th>Тип процесса</th><th>Код</th><th>Шаблоны</th></tr></thead><tbody>
+{% for type in types %}<tr><td style="padding-left: {{ (type.depth + 1) * 16 }}px">{{ type.name }}</td><td><code>{{ type.code }}</code></td><td><a href="{{ url_for('constructor.templates', type_id=type.type_id) }}">Шаблоны типа ({{ type.template_count }})</a></td></tr>{% endfor %}
+</tbody></table></div>
+{% else %}<p>Классификатор пуст. Добавьте первый тип процесса.</p>{% endif %}
+<h2>Добавить тип</h2>
+{% set f = retry_form(url_for('constructor.create_type')) %}
+<form method="post" action="{{ url_for('constructor.create_type') }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label>Код <input name="code" value="{{ f.get('code', '') if f is not none else '' }}" maxlength="200" required></label>
+  <label>Название <input name="name" value="{{ f.get('name', '') if f is not none else '' }}" maxlength="200" required></label>
+  <label>Родительский тип <select name="parent_code"><option value="">Корневой тип</option>{% for type in types %}<option value="{{ type.code }}" {% if f is not none and f.get('parent_code') == type.code %}selected{% endif %}>{{ type.name }} ({{ type.code }})</option>{% endfor %}</select></label>
+  <button type="submit">Добавить тип</button>
+</form>
+{% endblock %}

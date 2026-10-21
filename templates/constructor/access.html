@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Права доступа — Учебный ПВЗ{% endblock %}
+{% block content %}
+<h1>Группы и права доступа</h1>
+{% include "constructor/_template_nav.html" %}
+<p>Группа получает право на решение только после права на исходное состояние. Сотрудник должен быть назначен в действующую группу.</p>
+
+<h2>Группы доступа</h2>
+{% if groups %}
+<div class="table-wrap"><table>
+  <thead><tr><th>Код</th><th>Название</th><th>Статус</th><th>Действие</th></tr></thead>
+  <tbody>{% for group in groups %}<tr>
+    <td><code>{{ group.code }}</code></td><td>{{ group.name }}</td>
+    <td>{{ 'Действует' if group.is_active else 'Отключена' }}</td>
+    <td><form method="post" action="{{ url_for('constructor.group_status', template_id=template.template_id, code=group.code) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit">{{ 'Отключить' if group.is_active else 'Включить' }}</button>
+    </form></td>
+  </tr>{% endfor %}</tbody>
+</table></div>
+{% else %}<p>Групп пока нет.</p>{% endif %}
+{% set group_f = retry_form(url_for('constructor.save_group', template_id=template.template_id)) %}
+<form method="post" action="{{ url_for('constructor.save_group', template_id=template.template_id) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label>Код группы <input name="code" value="{{ group_f.get('code', '') if group_f is not none else '' }}" maxlength="200" required></label>
+  <label>Название группы <input name="name" value="{{ group_f.get('name', '') if group_f is not none else '' }}" maxlength="200" required></label>
+  <button type="submit">Создать или переименовать группу</button>
+</form>
+
+<h2>Сотрудники и группы</h2>
+{% if employees %}
+<div class="table-wrap"><table>
+  <thead><tr><th>Сотрудник</th><th>ПВЗ</th><th>Группы</th></tr></thead>
+  <tbody>{% for employee in employees %}<tr>
+    <td>{{ employee.full_name }} (<code>{{ employee.code }}</code>)</td>
+    <td>{{ employee.point_name }}</td>
+    <td>{{ employee.groups|join(', ') if employee.groups else '—' }}</td>
+  </tr>{% endfor %}</tbody>
+</table></div>
+{% endif %}
+{% if employees and groups %}
+{% set employee_f = retry_form(url_for('constructor.employee_group', template_id=template.template_id)) %}
+<form method="post" action="{{ url_for('constructor.employee_group', template_id=template.template_id) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label>Сотрудник <select name="employee_code" required>
+    {% for employee in employees %}<option value="{{ employee.code }}" {% if employee_f is not none and employee_f.get('employee_code') == employee.code %}selected{% endif %}>{{ employee.full_name }} ({{ employee.code }})</option>{% endfor %}
+  </select></label>
+  <label>Группа <select name="group_code" required>
+    {% for group in groups %}<option value="{{ group.code }}" {% if employee_f is not none and employee_f.get('group_code') == group.code %}selected{% endif %}>{{ group.name }} ({{ group.code }})</option>{% endfor %}
+  </select></label>
+  <button name="action" value="grant" type="submit">Назначить</button>
+  <button name="action" value="revoke" type="submit">Снять назначение</button>
+</form>
+{% endif %}
+
+<h2>Права на состояния</h2>
+{% if state_rights %}<ul>{% for right in state_rights %}<li>{{ right.state_name }} ({{ right.state_code }}) — {{ right.group_code }}</li>{% endfor %}</ul>
+{% else %}<p>Права на состояния не заданы.</p>{% endif %}
+{% if template.status == 'DRAFT' and states and groups %}
+{% set state_f = retry_form(url_for('constructor.state_access', template_id=template.template_id)) %}
+<form method="post" action="{{ url_for('constructor.state_access', template_id=template.template_id) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label>Состояние <select name="state_code" required>
+    {% for state in states %}<option value="{{ state.code }}" {% if state_f is not none and state_f.get('state_code') == state.code %}selected{% endif %}>{{ state.name }}</option>{% endfor %}
+  </select></label>
+  <label>Группа <select name="group_code" required>
+    {% for group in groups %}<option value="{{ group.code }}" {% if state_f is not none and state_f.get('group_code') == group.code %}selected{% endif %}>{{ group.name }}</option>{% endfor %}
+  </select></label>
+  <button name="action" value="grant" type="submit">Разрешить состояние</button>
+  <button name="action" value="revoke" type="submit">Отозвать право</button>
+</form>
+{% endif %}
+
+<h2>Права на решения</h2>
+{% if decision_rights %}<ul>{% for right in decision_rights %}<li>{{ right.state_code }} / {{ right.decision_code }} — {{ right.group_code }}</li>{% endfor %}</ul>
+{% else %}<p>Права на решения не заданы.</p>{% endif %}
+{% if template.status == 'DRAFT' and transitions and groups %}
+{% set decision_f = retry_form(url_for('constructor.decision_access', template_id=template.template_id)) %}
+<form method="post" action="{{ url_for('constructor.decision_access', template_id=template.template_id) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label>Решение исходного состояния <select name="clause_id" required>
+    <option value="">Выберите</option>
+    {% for tr in transitions %}<option value="{{ tr.clause_id }}" {% if decision_f is not none and decision_f.get('clause_id') == tr.clause_id|string %}selected{% endif %}>{{ tr.source_name }} / {{ tr.decision_name }}</option>{% endfor %}
+  </select></label>
+  <label>Группа <select name="group_code" required>
+    {% for group in groups %}<option value="{{ group.code }}" {% if decision_f is not none and decision_f.get('group_code') == group.code %}selected{% endif %}>{{ group.name }}</option>{% endfor %}
+  </select></label>
+  <button name="action" value="grant" type="submit">Разрешить решение</button>
+  <button name="action" value="revoke" type="submit">Отозвать право</button>
+</form>
+{% elif template.status != 'DRAFT' %}<p>Права этой версии доступны только для просмотра.</p>{% endif %}
+<p><a href="{{ url_for('constructor.template_detail', template_id=template.template_id) }}">Вернуться к проверке шаблона →</a></p>
+{% endblock %}

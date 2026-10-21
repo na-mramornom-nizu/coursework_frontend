@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Состояния шаблона — Учебный ПВЗ{% endblock %}
+{% block content %}
+<h1>Состояния процесса</h1>
+{% include "constructor/_template_nav.html" %}
+{% if states %}
+{% for state in states %}
+<section class="record"><h2>{{ state.name }} <small>({{ state.code }})</small></h2>
+{% if template.status == 'DRAFT' %}
+{% set f = retry_form(url_for('constructor.edit_state', template_id=template.template_id, state_id=state.state_id)) %}
+{% set initial_checked = (f.get('is_initial') is not none) if f is not none else state.is_initial %}
+{% set terminal_checked = (f.get('is_terminal') is not none) if f is not none else state.is_terminal %}
+<form method="post" action="{{ url_for('constructor.edit_state', template_id=template.template_id, state_id=state.state_id) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label>Код <input name="code" value="{{ f.get('code', state.code) if f is not none else state.code }}" maxlength="200" required></label>
+  <label>Название <input name="name" value="{{ f.get('name', state.name) if f is not none else state.name }}" maxlength="200" required></label>
+  <label class="inline"><input type="checkbox" name="is_initial" {% if initial_checked %}checked{% endif %}> Начальное</label>
+  <label class="inline"><input type="checkbox" name="is_terminal" {% if terminal_checked %}checked{% endif %}> Конечное</label>
+  <button type="submit">Сохранить состояние</button>
+</form>
+<form method="post" action="{{ url_for('constructor.delete_state', template_id=template.template_id, state_id=state.state_id) }}" onsubmit="return confirm('Удалить состояние?')"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit">Удалить</button></form>
+{% else %}<p>{% if state.is_initial %}Начальное. {% endif %}{% if state.is_terminal %}Конечное. {% endif %}Просмотр опубликованной или архивной версии.</p>{% endif %}
+{% if not state.is_terminal %}<p><a href="{{ url_for('constructor.transitions', template_id=template.template_id, from_code=state.code) }}">Переходы из этого состояния</a></p>{% endif %}
+</section>
+{% endfor %}
+{% else %}<p>Состояний пока нет.</p>{% endif %}
+{% if template.status == 'DRAFT' %}
+<h2>Добавить состояние</h2>
+{% set f = retry_form(url_for('constructor.create_state', template_id=template.template_id)) %}
+<form method="post" action="{{ url_for('constructor.create_state', template_id=template.template_id) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label>Код <input name="code" value="{{ f.get('code', '') if f is not none else '' }}" maxlength="200" required></label>
+  <label>Название <input name="name" value="{{ f.get('name', '') if f is not none else '' }}" maxlength="200" required></label>
+  <label class="inline"><input type="checkbox" name="is_initial" {% if f is not none and f.get('is_initial') is not none %}checked{% endif %}> Начальное</label>
+  <label class="inline"><input type="checkbox" name="is_terminal" {% if f is not none and f.get('is_terminal') is not none %}checked{% endif %}> Конечное</label>
+  <button type="submit">Добавить</button>
+</form>
+{% endif %}
+{% endblock %}

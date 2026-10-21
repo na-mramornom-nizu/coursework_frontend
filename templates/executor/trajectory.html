@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Траектория заказа {{ process.external_no }} — Учебный ПВЗ{% endblock %}
+{% block content %}
+<h1>Траектория процесса</h1>
+<p>Заказ <strong>{{ process.external_no }}</strong>. Шаблон: {{ process.template_name }}, версия {{ process.version_no }}.</p>
+<p>Текущее состояние: <strong>{{ process.state_name }}</strong>. {{ 'Процесс завершён.' if process.finished_at else 'Процесс выполняется.' }}</p>
+<p><a href="{{ url_for('executor.process_detail', instance_id=process.instance_id) }}">К текущему процессу</a> · <a href="{{ url_for('executor.order_detail', order_id=process.order_id) }}">К заказу</a></p>
+{% include "executor/_trajectory_table.html" %}
+{% endblock %}

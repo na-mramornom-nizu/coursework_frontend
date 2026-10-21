@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Шаблоны процессов — Учебный ПВЗ{% endblock %}
+{% block content %}
+<h1>Шаблоны процессов</h1>
+<form method="get"><label>Тип процесса <select name="type_id"><option value="">Все типы</option>{% for type in types %}<option value="{{ type.type_id }}" {% if selected == type.type_id %}selected{% endif %}>{{ type.name }}</option>{% endfor %}</select></label><button type="submit">Показать</button></form>
+{% if templates %}<div class="table-wrap"><table><thead><tr><th>Шаблон</th><th>Тип</th><th>Версия</th><th>Состояние</th></tr></thead><tbody>
+{% for template in templates %}<tr><td><a href="{{ url_for('constructor.template_detail', template_id=template.template_id) }}">{{ template.name }}</a><br><code>{{ template.code }}</code></td><td>{{ template.type_name }}</td><td>{{ template.family_code }} · {{ template.version_no }}</td><td>{{ {'DRAFT':'Черновик','PUBLISHED':'Опубликован','ARCHIVED':'Архивный'}[template.status] }}</td></tr>{% endfor %}
+</tbody></table></div>{% else %}<p>Шаблонов для выбранного типа пока нет.</p>{% endif %}
+<h2>Создать черновик</h2>
+{% set f = retry_form(url_for('constructor.create_template')) %}
+<form method="post" action="{{ url_for('constructor.create_template') }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label>Тип <select name="type_code" required><option value="">Выберите тип</option>{% for type in types %}<option value="{{ type.code }}" {% if (f is not none and f.get('type_code') == type.code) or (f is none and selected == type.type_id) %}selected{% endif %}>{{ type.name }}</option>{% endfor %}</select></label>
+  <label>Уникальный код <input name="code" value="{{ f.get('code', '') if f is not none else '' }}" maxlength="200" required></label>
+  <label>Название <input name="name" value="{{ f.get('name', '') if f is not none else '' }}" maxlength="200" required></label>
+  <button type="submit">Создать черновик</button>
+</form>
+{% endblock %}
